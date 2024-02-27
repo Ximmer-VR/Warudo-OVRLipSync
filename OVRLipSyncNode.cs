@@ -70,6 +70,11 @@ public class OVRLipSyncNode : Node
         [Label("BlendShape")]
         public string _shape = "";
 
+        [DataInput]
+        [Label("Weight")]
+        [FloatSlider(0.0f, 2.0f)]
+        public float _weight = 1.0f;
+
         // flag to prevent constantly searching for blendshapes every frame
         public bool _valid = false;
 
@@ -116,7 +121,7 @@ public class OVRLipSyncNode : Node
                 {
                     if (i == best)
                     {
-                        UpdateShape(ref _visemes[i], 1.0f);
+                        UpdateShape(ref _visemes[i], _visemes[i]._weight * 1.0f);
                     }
                     else
                     {
@@ -128,7 +133,7 @@ public class OVRLipSyncNode : Node
             {
                 for (int i = 0; i < _visemes.Length; i++)
                 {
-                    UpdateShape(ref _visemes[i], frame.Visemes[(int)_visemes[i]._viseme]);
+                    UpdateShape(ref _visemes[i], _visemes[i]._weight * frame.Visemes[(int)_visemes[i]._viseme]);
                 }
             }
 
