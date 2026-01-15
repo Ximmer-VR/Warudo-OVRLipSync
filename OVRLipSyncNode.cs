@@ -58,11 +58,14 @@ namespace dev.ximmer.OVRLipSync
         public float _gain = 1.0f;
 
         [DataInput]
-        [Label("RMS Samples")]
-        [FloatSlider(1.0f, 10000)]
-        float _rmsSamples = 1000;
+        [FloatSlider(-60.0f, 0.0f)]
+        [Label("Noise Gate (db)")]
+        public float _nosieGateDb = -40.0f;
 
-        float _averageEnergy = 0.0f;
+        [DataInput]
+        [FloatSlider(0.0f, 10.0f)]
+        [Label("Hold Open (seconds)")]
+        public float _holdOpen = 0.5f;
 
         [DataInput]
         [Label("Visemes")]
@@ -114,6 +117,8 @@ namespace dev.ximmer.OVRLipSync
         {
             if (_visemes != null)
             {
+                bool gateOpen = GateOpen();
+
                 if (_binarize)
                 {
                     int best = 0;
@@ -129,7 +134,7 @@ namespace dev.ximmer.OVRLipSync
 
                     for (int i = 0; i < _visemes.Length; i++)
                     {
-                        if (i == best)
+                        if (i == best && gateOpen)
                         {
                             UpdateShape(ref _visemes[i], _visemes[i]._weight * 1.0f);
                         }
@@ -143,7 +148,14 @@ namespace dev.ximmer.OVRLipSync
                 {
                     for (int i = 0; i < _visemes.Length; i++)
                     {
-                        UpdateShape(ref _visemes[i], _visemes[i]._weight * frame.Visemes[(int)_visemes[i]._viseme]);
+                        if (gateOpen)
+                        {
+                            UpdateShape(ref _visemes[i], _visemes[i]._weight * frame.Visemes[(int)_visemes[i]._viseme]);
+                        }
+                        else
+                        {
+                            UpdateShape(ref _visemes[i], 0.0f);
+                        }
                     }
                 }
 
@@ -152,11 +164,20 @@ namespace dev.ximmer.OVRLipSync
             return _blendshapeList;
         }
 
+        float _rms = 0.0f;
+
         [DataOutput]
         [Label("RMS Energy")]
-        float _rms()
+        float rms()
         {
-            return Mathf.Sqrt(_averageEnergy);
+            return _rms;
+        }
+
+        [DataOutput]
+        [Label("Output Db")]
+        float db()
+        {
+            return RmsToDb(_rms);
         }
 
         [DataInput]
@@ -469,16 +490,51 @@ namespace dev.ximmer.OVRLipSync
             _singleBlockNotificationStream.SingleBlockRead += SingleBlockNotificationStreamOnSingleBlockRead;
         }
 
+        private float CalculateRms(float[] samples)
+        {
+            double sum = 0.0;
+            for (int i = 0; i < samples.Length; i++)
+                sum += samples[i] * samples[i];
+
+            return (float)Math.Sqrt(sum / samples.Length);
+        }
+
+        private float RmsToDb(float rms)
+        {
+            const float minRms = 1e-9f; // avoid log(0)
+            return 20.0f * (float)Math.Log10(Math.Max(rms, minRms));
+        }
+
+        float _gateOpenTime = 0.0f;
+
+        private bool GateOpen()
+        {
+            float db = RmsToDb(_rms);
+
+            if (db >= _nosieGateDb)
+            {
+                _gateOpenTime = _holdOpen;
+                return true;
+            }
+
+            if (_gateOpenTime > 0.0f)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         private void SingleBlockNotificationStreamOnSingleBlockRead(object sender, SingleBlockReadEventArgs e)
         {
             float level = e.Left + e.Right;
-
-            _averageEnergy = ((_averageEnergy * (_rmsSamples - 1)) + (level * level)) / _rmsSamples;
 
             _audioBuffer[_audioBufferIndex++] = level * _gain;
             if (_audioBufferIndex >= _audioBuffer.Length)
             {
                 _audioBufferIndex = 0;
+
+                _rms = CalculateRms(_audioBuffer);
 
                 if (_context == 0 || Oculus.OVRLipSync.IsInitialized() != Oculus.OVRLipSync.Result.Success)
                 {
@@ -513,9 +569,20 @@ namespace dev.ximmer.OVRLipSync
 
         public override void OnUpdate()
         {
+            if (_gateOpenTime > 0.0f)
+            {
+                _gateOpenTime -= Time.deltaTime;
+            }
+            else
+            {
+                _gateOpenTime = 0.0f;
+            }
+
             if (_showDebug)
             {
                 _debugOutput = "";
+                _debugOutput += $"Noise Gate Open: {GateOpen()}\n\n";
+                _debugOutput += $"Rms Db: {RmsToDb(_rms):00.0}\n\n";
                 for (int i = 0; i < Enum.GetNames(typeof(Oculus.OVRLipSync.Viseme)).Length; i++)
                 {
                     _debugOutput += Enum.GetName(typeof(Oculus.OVRLipSync.Viseme), i) + ": " + ((int)(frame.Visemes[i] * 100)).ToString() + "%\n\n";
