@@ -1,8 +1,8 @@
 /*
  * OVRLipSyncNode.cs
- * 
+ *
  * Description: This script defines the OVRLipSyncNode class, which is responsible for generating OVR Lip Sync animations for Warudo.
- * 
+ *
  * Author: Ximmer
  * Date: February 17, 2024
  * Contact:
@@ -11,9 +11,9 @@
  *   - Twitch: https://www.twitch.tv/ximmer_vr
  *   - Bluesky: https://bsky.app/profile/ximmer.dev
  *   - Carrd: https://ximmer.carrd.co/
- * 
+ *
  * Copyright (c) 2024 Ximmer
- * 
+ *
  * MIT License
  * For the full license text, see the attached LICENSE file in the project root directory.
  */
@@ -111,6 +111,8 @@ namespace dev.ximmer.OVRLipSync
             }
         }
 
+        string _activeBinaryShape = "";
+
         [DataOutput]
         [Label("Output BlendShape List")]
         Dictionary<string, float> _outputBlendshapeList()
@@ -132,17 +134,15 @@ namespace dev.ximmer.OVRLipSync
                         }
                     }
 
+                    // Clear Shapes
                     for (int i = 0; i < _visemes.Length; i++)
                     {
-                        if (i == best && gateOpen)
-                        {
-                            UpdateShape(ref _visemes[i], _visemes[i]._weight * 1.0f);
-                        }
-                        else
-                        {
-                            UpdateShape(ref _visemes[i], 0.0f);
-                        }
+                        UpdateShape(ref _visemes[i], 0.0f);
                     }
+
+                    // Set Shapes
+                    _activeBinaryShape = _automap[(Oculus.OVRLipSync.Viseme)best][2];
+                    UpdateShape(ref _visemes[best], _visemes[best]._weight * 1.0f);
                 }
                 else
                 {
@@ -208,23 +208,23 @@ namespace dev.ximmer.OVRLipSync
 
         // Automap dictionary
         readonly Dictionary<Oculus.OVRLipSync.Viseme, List<string>> _automap = new Dictionary<Oculus.OVRLipSync.Viseme, List<string>>()
-    {
-        { Oculus.OVRLipSync.Viseme.SIL, new List<string>() { "vrc/sil", "vrc.v_sil", "sil", "" } },
-        { Oculus.OVRLipSync.Viseme.PP,  new List<string>() { "vrc/pp",  "vrc.v_pp",  "pp",  "" } },
-        { Oculus.OVRLipSync.Viseme.FF,  new List<string>() { "vrc/ff",  "vrc.v_ff",  "ff",  "" } },
-        { Oculus.OVRLipSync.Viseme.TH,  new List<string>() { "vrc/th",  "vrc.v_th",  "th",  "" } },
-        { Oculus.OVRLipSync.Viseme.DD,  new List<string>() { "vrc/dd",  "vrc.v_dd",  "dd",  "" } },
-        { Oculus.OVRLipSync.Viseme.KK,  new List<string>() { "vrc/kk",  "vrc.v_kk",  "kk",  "" } },
-        { Oculus.OVRLipSync.Viseme.CH,  new List<string>() { "vrc/ch",  "vrc.v_ch",  "ch",  "" } },
-        { Oculus.OVRLipSync.Viseme.SS,  new List<string>() { "vrc/ss",  "vrc.v_ss",  "ss",  "" } },
-        { Oculus.OVRLipSync.Viseme.NN,  new List<string>() { "vrc/nn",  "vrc.v_nn",  "nn",  "" } },
-        { Oculus.OVRLipSync.Viseme.RR,  new List<string>() { "vrc/rr",  "vrc.v_rr",  "rr",  "" } },
-        { Oculus.OVRLipSync.Viseme.AA,  new List<string>() { "vrc/aa",  "vrc.v_aa",  "aa",  "a" } },
-        { Oculus.OVRLipSync.Viseme.E ,  new List<string>() { "vrc/e",   "vrc.v_e" ,  "e",   "e" } },
-        { Oculus.OVRLipSync.Viseme.IH,  new List<string>() { "vrc/ih",  "vrc.v_ih",  "ih",  "i" } },
-        { Oculus.OVRLipSync.Viseme.OH,  new List<string>() { "vrc/oh",  "vrc.v_oh",  "oh",  "o" } },
-        { Oculus.OVRLipSync.Viseme.OU,  new List<string>() { "vrc/ou",  "vrc.v_ou",  "ou",  "u" } },
-    };
+        {
+            { Oculus.OVRLipSync.Viseme.SIL, new List<string>() { "vrc/sil", "vrc.v_sil", "sil", "" } },
+            { Oculus.OVRLipSync.Viseme.PP,  new List<string>() { "vrc/pp",  "vrc.v_pp",  "pp",  "" } },
+            { Oculus.OVRLipSync.Viseme.FF,  new List<string>() { "vrc/ff",  "vrc.v_ff",  "ff",  "" } },
+            { Oculus.OVRLipSync.Viseme.TH,  new List<string>() { "vrc/th",  "vrc.v_th",  "th",  "" } },
+            { Oculus.OVRLipSync.Viseme.DD,  new List<string>() { "vrc/dd",  "vrc.v_dd",  "dd",  "" } },
+            { Oculus.OVRLipSync.Viseme.KK,  new List<string>() { "vrc/kk",  "vrc.v_kk",  "kk",  "" } },
+            { Oculus.OVRLipSync.Viseme.CH,  new List<string>() { "vrc/ch",  "vrc.v_ch",  "ch",  "" } },
+            { Oculus.OVRLipSync.Viseme.SS,  new List<string>() { "vrc/ss",  "vrc.v_ss",  "ss",  "" } },
+            { Oculus.OVRLipSync.Viseme.NN,  new List<string>() { "vrc/nn",  "vrc.v_nn",  "nn",  "" } },
+            { Oculus.OVRLipSync.Viseme.RR,  new List<string>() { "vrc/rr",  "vrc.v_rr",  "rr",  "" } },
+            { Oculus.OVRLipSync.Viseme.AA,  new List<string>() { "vrc/aa",  "vrc.v_aa",  "aa",  "a" } },
+            { Oculus.OVRLipSync.Viseme.E ,  new List<string>() { "vrc/e",   "vrc.v_e" ,  "e",   "e" } },
+            { Oculus.OVRLipSync.Viseme.IH,  new List<string>() { "vrc/ih",  "vrc.v_ih",  "ih",  "i" } },
+            { Oculus.OVRLipSync.Viseme.OH,  new List<string>() { "vrc/oh",  "vrc.v_oh",  "oh",  "o" } },
+            { Oculus.OVRLipSync.Viseme.OU,  new List<string>() { "vrc/ou",  "vrc.v_ou",  "ou",  "u" } },
+        };
 
         [FlowInput]
         public Continuation AutoMapVisemes()
@@ -583,6 +583,12 @@ namespace dev.ximmer.OVRLipSync
                 _debugOutput = "";
                 _debugOutput += $"Noise Gate Open: {GateOpen()}\n\n";
                 _debugOutput += $"Rms Db: {RmsToDb(_rms):00.0}\n\n";
+
+                if (_binarize)
+                {
+                    _debugOutput += $"Active Viseme: {_activeBinaryShape}\n\n";
+                }
+
                 for (int i = 0; i < Enum.GetNames(typeof(Oculus.OVRLipSync.Viseme)).Length; i++)
                 {
                     _debugOutput += Enum.GetName(typeof(Oculus.OVRLipSync.Viseme), i) + ": " + ((int)(frame.Visemes[i] * 100)).ToString() + "%\n\n";
