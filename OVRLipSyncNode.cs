@@ -25,6 +25,7 @@ using CSCore.Streams;
 using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using Warudo.Core;
@@ -66,6 +67,10 @@ namespace dev.ximmer.OVRLipSync
         [FloatSlider(0.0f, 10.0f)]
         [Label("Hold Open (seconds)")]
         public float _holdOpen = 0.5f;
+
+        [DataInput]
+        [Label("Use VRM Blendshape Clips")]
+        bool _useBlendShapeClips = false;
 
         [DataInput]
         [Label("Visemes")]
@@ -117,6 +122,13 @@ namespace dev.ximmer.OVRLipSync
         [Label("Output BlendShape List")]
         Dictionary<string, float> _outputBlendshapeList()
         {
+            // clear out the blendshapes
+            foreach (var key in _blendshapeList.Keys.ToList())
+            {
+                _blendshapeList[key] = 0.0f;
+            }
+
+            // build the blendshapes
             if (_visemes != null)
             {
                 bool gateOpen = GateOpen();
@@ -235,6 +247,12 @@ namespace dev.ximmer.OVRLipSync
                 return null;
             }
 
+            if (_useBlendShapeClips)
+            {
+                return AutoMapVisemesBlendshapeClips();
+            }
+
+
             _visemes = new VisemeData[0];
 
             foreach (KeyValuePair<Oculus.OVRLipSync.Viseme, List<string>> item in _automap)
@@ -286,6 +304,63 @@ namespace dev.ximmer.OVRLipSync
             return null;
         }
 
+        Continuation AutoMapVisemesBlendshapeClips()
+        {
+            if (_character == null)
+            {
+                Context.Service.Toast(Warudo.Core.Server.ToastSeverity.Error, "Automap Visemes", "Please select a character first.");
+                return null;
+            }
+
+            _visemes = new VisemeData[0];
+
+            foreach (KeyValuePair<Oculus.OVRLipSync.Viseme, List<string>> item in _automap)
+            {
+                string best = "";
+                int bestDist = 200;
+                bool found = false;
+                foreach (KeyValuePair<string, CharacterAsset.VRMBlendShapeClipData> clip in _character.VRMBlendShapeClips)
+                {
+                    string shape = clip.Key;
+
+                    if (shape == "") continue;
+
+                    foreach (string testShape in item.Value)
+                    {
+                        int dist = LevenshteinDistance(testShape.ToLower(), shape.ToLower());
+                        Debug.Log(testShape + " " + shape + " " + dist.ToString());
+
+                        if (dist == 0)
+                        {
+                            best = shape;
+                            found = true;
+                            break;
+                        }
+
+                        if (dist < bestDist)
+                        {
+                            best = shape;
+                            bestDist = dist;
+                        }
+                    }
+                    if (found) break;
+                }
+
+                VisemeData vd = StructuredData.Create<VisemeData>();
+                vd._viseme = item.Key;
+                vd._shape = best;
+
+                VisemeData[] nvd = new VisemeData[_visemes.Length + 1];
+                Array.Copy(_visemes, nvd, _visemes.Length);
+                _visemes = nvd;
+                _visemes[_visemes.Length - 1] = vd;
+            }
+
+            BroadcastDataInput(nameof(_visemes));
+
+            return null;
+        }
+
         // ----------------------------------------
         // Internal Data
         // ----------------------------------------
@@ -310,6 +385,12 @@ namespace dev.ximmer.OVRLipSync
             if (vd._shape == null) return;
             if (vd._shape == "") return;
 
+            if (_useBlendShapeClips)
+            {
+                UpdateBlendShapeClips(ref vd, value);
+                return;
+            }
+
             if (vd._valid)
             {
                 _blendshapeList[vd._shape] = value;// frame.Visemes[(int)vd._viseme];
@@ -325,6 +406,31 @@ namespace dev.ximmer.OVRLipSync
                         vd._valid = true;
                         _blendshapeList[vd._shape] = value;// frame.Visemes[(int)vd._viseme];
                     }
+                }
+            }
+        }
+
+        public void UpdateBlendShapeClips(ref VisemeData vd, float value)
+        {
+            if (_character == null) return;
+
+            if (!_character.VRMBlendShapeClips.ContainsKey(vd._shape)) return;
+
+            CharacterAsset.VRMBlendShapeClipData clip = _character.VRMBlendShapeClips[vd._shape];
+
+            foreach ((string smr, string name, float weight) c in clip.BlendShapes)
+            {
+                float weight = (c.weight * value) / 100.0f;
+                if (_blendshapeList.ContainsKey(c.name))
+                {
+                    if (_blendshapeList[c.name] < weight)
+                    {
+                        _blendshapeList[c.name] = weight;
+                    }
+                }
+                else
+                {
+                    _blendshapeList[c.name] = weight;
                 }
             }
         }
