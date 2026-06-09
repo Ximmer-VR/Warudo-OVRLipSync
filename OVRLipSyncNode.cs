@@ -1,8 +1,8 @@
 /*
  * OVRLipSyncNode.cs
- *
+ * 
  * Description: This script defines the OVRLipSyncNode class, which is responsible for generating OVR Lip Sync animations for Warudo.
- *
+ * 
  * Author: Ximmer
  * Date: February 17, 2024
  * Contact:
@@ -11,9 +11,9 @@
  *   - Twitch: https://www.twitch.tv/ximmer_vr
  *   - Bluesky: https://bsky.app/profile/ximmer.dev
  *   - Carrd: https://ximmer.carrd.co/
- *
+ * 
  * Copyright (c) 2024 Ximmer
- *
+ * 
  * MIT License
  * For the full license text, see the attached LICENSE file in the project root directory.
  */
@@ -122,12 +122,6 @@ namespace dev.ximmer.OVRLipSync
         [Label("Output BlendShape List")]
         Dictionary<string, float> _outputBlendshapeList()
         {
-            // clear out the blendshapes
-            foreach (var key in _blendshapeList.Keys.ToList())
-            {
-                _blendshapeList[key] = 0.0f;
-            }
-
             // build the blendshapes
             if (_visemes != null)
             {
@@ -158,6 +152,14 @@ namespace dev.ximmer.OVRLipSync
                 }
                 else
                 {
+                    if (_useBlendShapeClips)
+                    {
+                        for (int i = 0; i < _visemes.Length; i++)
+                        {
+                            UpdateBlendShapeClips(ref _visemes[i], -1.0f);
+                        }
+                    }
+
                     for (int i = 0; i < _visemes.Length; i++)
                     {
                         if (gateOpen)
@@ -237,6 +239,7 @@ namespace dev.ximmer.OVRLipSync
             { Oculus.OVRLipSync.Viseme.OH,  new List<string>() { "vrc/oh",  "vrc.v_oh",  "oh",  "o" } },
             { Oculus.OVRLipSync.Viseme.OU,  new List<string>() { "vrc/ou",  "vrc.v_ou",  "ou",  "u" } },
         };
+
 
         [FlowInput]
         public Continuation AutoMapVisemes()
@@ -420,6 +423,12 @@ namespace dev.ximmer.OVRLipSync
 
             foreach ((string smr, string name, float weight) c in clip.BlendShapes)
             {
+                if (value < 0.01f)
+                {
+                    _blendshapeList[c.name] = 0.0f;
+                    continue;
+                }
+
                 float weight = (c.weight * value) / 100.0f;
                 if (_blendshapeList.ContainsKey(c.name))
                 {
